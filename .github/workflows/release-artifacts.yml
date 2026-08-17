@@ -62,9 +62,48 @@ jobs:
       - name: Generate Android native project
         run: npx expo prebuild --platform android --no-install
 
+      - name: Prepare Android release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!required}" ]]; then
+              echo "Missing required GitHub Secret: ${required}" >&2
+              exit 1
+            fi
+          done
+
+          signing_file="$RUNNER_TEMP/immersion-upload.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$signing_file"
+          test -s "$signing_file"
+          {
+            echo "IMMERSION_SIGNING_STORE_FILE=$signing_file"
+            echo "IMMERSION_SIGNING_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+            echo "IMMERSION_SIGNING_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+            echo "IMMERSION_SIGNING_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Build Android release APK
         working-directory: android
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace \
+            "-Pandroid.injected.signing.store.file=$IMMERSION_SIGNING_STORE_FILE" \
+            "-Pandroid.injected.signing.store.password=$IMMERSION_SIGNING_STORE_PASSWORD" \
+            "-Pandroid.injected.signing.key.alias=$IMMERSION_SIGNING_KEY_ALIAS" \
+            "-Pandroid.injected.signing.key.password=$IMMERSION_SIGNING_KEY_PASSWORD"
+
+      - name: Verify release APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$apksigner"
+          "$apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -84,6 +123,11 @@ jobs:
             echo '## Immersion release artifacts'
             echo "- Commit: $GITHUB_SHA"
             echo "- Version: $(node -p "require('./package.json').version")"
-            echo '- Android APK: generated with the default debug keystore; use EAS/store signing for distribution.'
+            echo '- Android APK: release-signed with the repository signing key; keep the keystore backup for future updates.'
             echo '- Expo bundles: Android and iOS exports are included in the uploaded artifact.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove temporary signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/immersion-upload.p12"

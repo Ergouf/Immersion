@@ -50,7 +50,7 @@ Installable beta builds use the profiles in `eas.json` and require a configured 
 
 ## GitHub release artifacts
 
-The `Build release artifacts` GitHub Actions workflow runs for pushes to `main` or an `agent/**` branch, pull requests targeting `main`, and manual dispatches. It verifies the project, exports Android/iOS Expo bundles, builds an Android APK, and uploads all three outputs as an Actions artifact named `immersion-release-<commit>`. The APK uses the default debug keystore; use EAS or store signing for a distributable beta.
+The `Build release artifacts` GitHub Actions workflow runs for pushes to `main` or an `agent/**` branch, pull requests targeting `main`, and manual dispatches. It verifies the project, exports Android/iOS Expo bundles, builds a release-signed Android APK, verifies its certificate, and uploads all three outputs as an Actions artifact named `immersion-release-<commit>`. The signing key stays in repository Secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`); keep the matching keystore backup for future updates.
 
 ## Delivery phases
 
