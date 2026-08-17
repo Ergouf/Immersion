@@ -26,6 +26,32 @@ Immersion is not a generic productivity suite or another feature-heavy Pomodoro 
 
 Exact package versions are selected and locked during Phase 1 using versions compatible with the chosen stable Expo SDK.
 
+## Local development
+
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm run test
+npm run doctor
+npm start
+```
+
+The Android and iOS targets share the same `app/` and `src/` code paths. The native bundle smoke commands used in the phase gates are:
+
+```bash
+npx expo export --platform android --output-dir dist-native
+npx expo export --platform ios --output-dir dist-ios
+```
+
+The Android release APK also compiles locally with the generated native project. The current local artifact is `android/app/build/outputs/apk/release/app-release.apk` (generated debug keystore); a distributable beta still requires EAS/store signing, and installing it requires an Android device or configured AVD.
+
+Installable beta builds use the profiles in `eas.json` and require a configured Expo account plus a real Android/iOS device for the final smoke matrix.
+
+## GitHub release artifacts
+
+The `Build release artifacts` GitHub Actions workflow runs for pushes to `main` or an `agent/**` branch, pull requests targeting `main`, and manual dispatches. It verifies the project, exports Android/iOS Expo bundles, builds an Android APK, and uploads all three outputs as an Actions artifact named `immersion-release-<commit>`. The APK uses the default debug keystore; use EAS or store signing for a distributable beta.
+
 ## Delivery phases
 
 | Phase | Outcome | Version target |
@@ -49,3 +75,7 @@ Each phase lives under `docs/phases/` and contains:
 ## Hard MVP boundary
 
 Phases 01–04 may only add capabilities that directly support **entering, maintaining, or observing immersion**. Phase 05 adds data portability. Phase 06 stabilizes what already exists. Any unrelated feature goes to backlog rather than into the active phase.
+
+## Current implementation record
+
+The implementation is organized by the six manifests under `docs/phases/`. Domain and repository logic is covered by `tests/domain.test.ts`; the current verification record, including platform limits of this Windows workspace, is in `docs/verification/phase-status.md`.
