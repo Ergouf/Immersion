@@ -1,0 +1,55 @@
+schema_version: 1
+phase:
+  id: P03
+  name: distraction_parking
+  version_target: v0.2
+  depends_on: [P02]
+  objective: "让分心冲动被低成本暂存，而不是立即执行"
+
+preconditions:
+  - P02_exit_gate_passed
+  - core_loop_is_daily_usable
+
+allowed_changes:
+  - distraction_repository_operations
+  - distraction_capture_component
+  - focus_capture_entry
+  - keyboard_and_modal_lifecycle_handling
+  - capture_error_handling
+
+forbidden_changes:
+  - distraction_tags
+  - distraction_categories
+  - priority
+  - due_dates
+  - todo_conversion
+  - reminders
+  - distraction_feed_on_focus_screen
+  - ai_analysis
+  - gamification
+  - history_metrics
+  - backup
+  - backend
+
+data_invariants:
+  - distraction_requires_active_session
+  - distraction_text_is_trimmed_and_non_empty
+  - capture_does_not_modify_started_at
+  - failed_save_does_not_discard_draft_text
+
+acceptance:
+  - id: P03-A01
+    condition: capture_save_return_flow_is_fast_and_complete
+  - id: P03-A02
+    condition: saved_distraction_is_persisted_and_linked_to_session
+  - id: P03-A03
+    condition: capture_does_not_break_timer_or_recovery
+  - id: P03-A04
+    condition: android_and_ios_keyboard_lifecycle_verified
+  - id: P03-A05
+    condition: phase_02_regression_passed
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/03-distraction-parking/CHECKLIST.md
+  next_phase: P04

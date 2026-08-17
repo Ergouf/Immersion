@@ -1,0 +1,61 @@
+schema_version: 1
+phase:
+  id: P02
+  name: core_loop
+  version_target: v0.1
+  depends_on: [P01]
+  objective: "交付输入、开始、计时、结束、保存的首次可用闭环"
+
+preconditions:
+  - P01_exit_gate_passed
+  - ios_and_android_baseline_verified
+
+allowed_changes:
+  - session_start_use_case
+  - active_session_recovery
+  - home_start_ui
+  - focus_route
+  - elapsed_timer_view
+  - app_lifecycle_recalculation
+  - session_end_use_case
+  - minimal_review_route
+
+forbidden_changes:
+  - pause_resume
+  - pomodoro_cycles
+  - countdown_timer
+  - notifications
+  - distraction_capture
+  - reflection_questionnaire
+  - history
+  - metrics_dashboard
+  - backup
+  - backend
+  - accounts
+  - ai
+  - app_blocking
+
+data_invariants:
+  - at_most_one_active_session
+  - active_session_has_ended_at_null
+  - elapsed_time_source_is_wall_clock_delta
+  - session_is_persisted_before_navigation_to_focus
+  - session_is_ended_before_navigation_to_review
+
+acceptance:
+  - id: P02-A01
+    condition: complete_start_focus_end_flow_works
+  - id: P02-A02
+    condition: background_and_lock_screen_do_not_break_elapsed_time
+  - id: P02-A03
+    condition: killed_app_recovers_active_session
+  - id: P02-A04
+    condition: duplicate_start_does_not_create_second_active_session
+  - id: P02-A05
+    condition: android_and_ios_core_flow_verified
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/02-core-loop/CHECKLIST.md
+  usability_gate: "用户可从此版本开始每天真实使用；不得依赖 P03 才完成核心闭环。"
+  next_phase: P03

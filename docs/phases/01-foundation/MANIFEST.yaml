@@ -1,0 +1,66 @@
+schema_version: 1
+phase:
+  id: P01
+  name: foundation
+  version_target: v0.0.1
+  depends_on: []
+  objective: "建立 Android/iOS 共用的 Expo/TypeScript/SQLite 工程地基"
+
+allowed_changes:
+  - expo_project_scaffold
+  - expo_router_setup
+  - typescript_configuration
+  - theme_tokens
+  - sqlite_database_bootstrap
+  - schema_migrations
+  - session_and_distraction_domain_types
+  - repository_interfaces_and_sqlite_implementations
+  - static_quality_scripts
+
+forbidden_changes:
+  - production_focus_flow
+  - distraction_capture_ui
+  - reflection_ui
+  - history_or_metrics
+  - backup_import_export
+  - backend
+  - accounts
+  - cloud_sync
+  - ai
+  - gamification
+  - app_blocking
+  - notifications
+  - custom_native_code
+  - global_state_framework
+  - orm_framework
+
+deliverables:
+  - package.json
+  - package_lockfile
+  - app/_layout.tsx
+  - app/index.tsx
+  - src/domain/session.ts
+  - src/domain/distraction.ts
+  - src/data/database.ts
+  - src/data/migrations.ts
+  - src/data/repositories
+
+acceptance:
+  - id: P01-A01
+    condition: android_app_starts
+  - id: P01-A02
+    condition: ios_app_starts
+  - id: P01-A03
+    condition: sqlite_persists_across_restart
+  - id: P01-A04
+    condition: migrations_are_versioned_and_repeat_safe
+  - id: P01-A05
+    condition: no_raw_sql_in_ui
+  - id: P01-A06
+    condition: typecheck_lint_expo_doctor_pass_without_blocker
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/01-foundation/CHECKLIST.md
+  next_phase: P02
+  prohibition: "P01-A02 未真实验证前不得开始 P02。"

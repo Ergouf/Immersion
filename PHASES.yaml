@@ -1,0 +1,77 @@
+schema_version: 1
+project:
+  name: Immersion
+  repository: Ergouf/Immersion
+  product_type: local_first_mobile_app
+  platforms: [android, ios]
+  mvp_goal: "帮助用户进入、维持并观察对单一活动的深度沉浸"
+
+stack:
+  framework: react_native_expo
+  language: typescript
+  router: expo_router
+  persistence: expo_sqlite
+  package_policy: "使用 expo install 选择与实施时稳定 Expo SDK 兼容的版本，并提交 lockfile"
+
+principles:
+  - local_first
+  - cross_platform_from_day_one
+  - low_stimulation_ui
+  - one_task_at_a_time
+  - data_ownership
+  - minimal_dependencies
+  - evidence_before_expansion
+
+global_constraints:
+  forbidden_through_phase_6:
+    - backend
+    - user_accounts
+    - cloud_sync
+    - ai_features
+    - social_features
+    - gamification
+    - ads
+    - analytics_sdk
+    - app_blocking
+    - custom_native_kotlin
+    - custom_native_swift
+  require_explicit_approval:
+    - any_new_runtime_dependency_not_required_by_a_phase_manifest
+    - schema_breaking_change
+    - platform_specific_behavior
+    - background_service
+    - notification_permission
+  architecture:
+    - ui_must_not_execute_raw_sql
+    - persistence_access_must_go_through_repository_layer
+    - timestamps_are_epoch_milliseconds
+    - timer_truth_is_started_at_not_incremented_counter
+    - domain_logic_must_be_platform_neutral_typescript
+
+phase_order:
+  - id: P01
+    path: docs/phases/01-foundation/MANIFEST.yaml
+    depends_on: []
+  - id: P02
+    path: docs/phases/02-core-loop/MANIFEST.yaml
+    depends_on: [P01]
+  - id: P03
+    path: docs/phases/03-distraction-parking/MANIFEST.yaml
+    depends_on: [P02]
+  - id: P04
+    path: docs/phases/04-reflection-history/MANIFEST.yaml
+    depends_on: [P03]
+  - id: P05
+    path: docs/phases/05-portability/MANIFEST.yaml
+    depends_on: [P04]
+  - id: P06
+    path: docs/phases/06-hardening/MANIFEST.yaml
+    depends_on: [P05]
+
+execution_policy:
+  sequential: true
+  rule: "前一 Phase 的 acceptance 与 exit_gate 未全部通过，不得开始下一 Phase。"
+  scope_rule: "不属于当前 allowed_changes 的需求进入 backlog，不顺手实现。"
+  task_rule: "实现必须能映射到 TASKS.md 中的 task id；无 task id 的产品功能不得提交。"
+  dependency_rule: "新增依赖必须说明为何平台 API 或现有依赖不足，并更新对应 MANIFEST.yaml。"
+  completion_rule: "CHECKLIST.md 全部勾选且 MANIFEST.yaml exit_gate 满足后，Phase 才能标记完成。"
