@@ -1,0 +1,60 @@
+schema_version: 1
+phase:
+  id: P05
+  name: portability
+  version_target: v0.4
+  depends_on: [P04]
+  objective: "提供无需账号/服务器的 Android 与 iOS 双向数据迁移"
+
+preconditions:
+  - P04_exit_gate_passed
+  - mvp_feature_freeze_active
+
+allowed_changes:
+  - backup_v1_types
+  - backup_serializer
+  - backup_validator
+  - expo_file_export
+  - system_share_sheet
+  - document_picker_import
+  - import_preview
+  - transactional_merge_import
+
+forbidden_changes:
+  - cloud_sync
+  - background_sync
+  - user_accounts
+  - remote_storage_sdk
+  - analytics
+  - telemetry
+  - automatic_upload
+  - destructive_replace_import
+  - silent_conflict_resolution
+  - unrelated_mvp_features
+
+backup_invariants:
+  - format_is_immersion_backup
+  - backup_version_is_explicit
+  - original_ids_are_preserved
+  - timestamps_remain_epoch_milliseconds
+  - import_validates_before_writing
+  - import_is_transactional
+  - conflicting_same_id_different_content_aborts
+  - repeated_same_backup_is_idempotent
+
+acceptance:
+  - id: P05-A01
+    condition: android_export_ios_import_preserves_data
+  - id: P05-A02
+    condition: ios_export_android_import_preserves_data
+  - id: P05-A03
+    condition: repeated_import_is_idempotent
+  - id: P05-A04
+    condition: invalid_future_or_conflicting_backup_does_not_mutate_database
+  - id: P05-A05
+    condition: import_failure_rolls_back_completely
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/05-portability/CHECKLIST.md
+  next_phase: P06

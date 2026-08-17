@@ -1,0 +1,67 @@
+schema_version: 1
+phase:
+  id: P06
+  name: hardening
+  version_target: v0.5-beta
+  depends_on: [P05]
+  objective: "在不扩功能的前提下完成可靠性、可访问性、UI 收口与双平台 beta readiness"
+
+preconditions:
+  - P05_exit_gate_passed
+  - mvp_feature_freeze_active
+
+allowed_changes:
+  - bug_fixes
+  - lifecycle_recovery_fixes
+  - data_integrity_fixes
+  - critical_logic_tests
+  - theme_token_consolidation
+  - accessibility
+  - reduced_motion
+  - app_icon_and_splash
+  - expo_eas_build_configuration
+  - dependency_cleanup
+  - documentation_sync
+
+forbidden_changes:
+  - new_product_features
+  - backend
+  - accounts
+  - cloud_sync
+  - ai
+  - gamification
+  - social
+  - analytics_sdk
+  - app_blocking
+  - notifications_without_new_approved_phase
+  - custom_native_code_without_explicit_approval
+  - destructive_database_reset_as_general_recovery
+
+quality_invariants:
+  - preserve_user_data_on_recoverable_failure
+  - android_and_ios_share_domain_logic
+  - no_unjustified_sensitive_permissions
+  - reduced_motion_supported
+  - critical_pure_logic_has_automated_tests
+  - unused_runtime_dependencies_removed
+
+acceptance:
+  - id: P06-A01
+    condition: reliability_matrix_passes_on_android_and_ios
+  - id: P06-A02
+    condition: critical_logic_automated_tests_pass
+  - id: P06-A03
+    condition: voiceover_and_talkback_key_flows_verified
+  - id: P06-A04
+    condition: installable_android_beta_build_smoke_test_passes
+  - id: P06-A05
+    condition: installable_ios_beta_build_smoke_test_passes
+  - id: P06-A06
+    condition: no_scope_expansion_or_unjustified_permissions
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/06-hardening/CHECKLIST.md
+  release_state: v0.5_beta_ready
+  next_phase: null
+  rule: "后续任何 AI、云同步、应用屏蔽、通知、训练课程或商业化能力必须重新立项，不得视为 P06 尾项。"

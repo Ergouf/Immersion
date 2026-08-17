@@ -1,0 +1,63 @@
+schema_version: 1
+phase:
+  id: P04
+  name: reflection_history
+  version_target: v0.3
+  milestone: mvp_complete
+  depends_on: [P03]
+  objective: "用极简反思、历史和最小指标完成可观察的沉浸训练 MVP"
+
+preconditions:
+  - P03_exit_gate_passed
+  - core_loop_and_distraction_capture_stable
+
+allowed_changes:
+  - reflection_domain_validation
+  - reflection_review_ui
+  - history_query
+  - history_list
+  - session_detail
+  - seven_day_summary
+  - empty_states
+
+forbidden_changes:
+  - charts
+  - heatmaps
+  - streaks
+  - achievements
+  - points
+  - leaderboards
+  - goals_system
+  - projects
+  - tags
+  - search
+  - todo_management
+  - ai_summary
+  - cloud_sync
+  - backend
+
+data_invariants:
+  - immersion_level_is_null_or_integer_0_to_3
+  - immersion_delay_is_null_or_non_negative
+  - end_reason_is_null_or_known_enum
+  - reflection_update_never_changes_started_at_or_ended_at
+  - aggregates_exclude_active_or_invalid_duration_sessions
+
+acceptance:
+  - id: P04-A01
+    condition: reflection_can_be_saved_or_skipped_without_data_loss
+  - id: P04-A02
+    condition: history_and_detail_show_persisted_session_truth
+  - id: P04-A03
+    condition: seven_day_summary_is_correct_for_known_fixture_data
+  - id: P04-A04
+    condition: phase_02_and_03_regressions_pass
+  - id: P04-A05
+    condition: android_and_ios_mvp_flow_verified
+
+exit_gate:
+  all_acceptance_required: true
+  checklist_required: docs/phases/04-reflection-history/CHECKLIST.md
+  milestone: mvp_feature_freeze
+  required_action: "进入真实使用期；未经过使用反馈验证的新功能只能进入 backlog。"
+  next_phase: P05
