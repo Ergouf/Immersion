@@ -4,12 +4,18 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build or backfill, for example v0.5.0
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -19,11 +25,25 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout tagged source
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve release tag
+        shell: bash
+        env:
+          MANUAL_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_tag="$MANUAL_TAG"
+          else
+            release_tag="$GITHUB_REF_NAME"
+          fi
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Release tag must look like v0.5.0 or v0.5.0-beta.1; got: $tag" >&2
             exit 1
@@ -123,7 +143,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          apk_name="Immersion-${GITHUB_REF_NAME}-android.apk"
+          apk_name="Immersion-${RELEASE_TAG}-android.apk"
           cp android/app/build/outputs/apk/release/app-release.apk "release-assets/$apk_name"
           (
             cd release-assets
@@ -140,7 +160,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="$GITHUB_REF_NAME"
+          tag="$RELEASE_TAG"
           prerelease=false
           if [[ "$tag" == v0.* || "$tag" == *-* ]]; then
             prerelease=true
@@ -180,7 +200,7 @@ jobs:
         run: |
           {
             echo '## Immersion release published'
-            echo "- Tag: $GITHUB_REF_NAME"
+            echo "- Tag: $RELEASE_TAG"
             echo "- Android: $(basename "$RELEASE_APK")"
             echo "- Checksum: $(basename "$RELEASE_CHECKSUM")"
             echo '- iOS: bundle validation passed; no installable IPA is produced by this Linux workflow.'
