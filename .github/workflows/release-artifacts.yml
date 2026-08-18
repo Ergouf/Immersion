@@ -9,17 +9,60 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  freshness:
+    name: Decide whether a build is needed
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.decision.outputs.should_run }}
+    steps:
+      - name: Check current main APK artifact on scheduled runs
+        id: decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          artifact_name="immersion-signed-apk-${GITHUB_SHA}"
+          api_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}"
+          count="$(
+            curl --fail --silent --show-error --location \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "$api_url" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin).get("total_count", 0))'
+          )"
+
+          if [[ "$count" -gt 0 ]]; then
+            echo "APK artifact already exists for ${GITHUB_SHA}; scheduled run will stop here."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No APK artifact exists for ${GITHUB_SHA}; scheduled run will backfill it."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   validate:
     name: Validate Expo app and build main APK
+    needs: freshness
+    if: needs.freshness.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -53,7 +96,7 @@ jobs:
           npx expo export --platform ios --output-dir dist-ios --clear
 
       - name: Set up Java for signed APK
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -61,11 +104,11 @@ jobs:
           cache: gradle
 
       - name: Generate Android native project
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: npx expo prebuild --platform android --no-install
 
       - name: Prepare Android release signing
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -92,7 +135,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build signed Android release APK
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         working-directory: android
         run: |
           ./gradlew :app:assembleRelease --no-daemon --stacktrace \
@@ -102,7 +145,7 @@ jobs:
             "-Pandroid.injected.signing.key.password=$IMMERSION_SIGNING_KEY_PASSWORD"
 
       - name: Verify APK signature
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         shell: bash
         run: |
           set -euo pipefail
@@ -111,7 +154,7 @@ jobs:
           "$apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare signed APK artifact
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         shell: bash
         run: |
           set -euo pipefail
@@ -140,7 +183,7 @@ jobs:
           retention-days: 7
 
       - name: Upload signed APK from main
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v4
         with:
           name: immersion-signed-apk-${{ github.sha }}
@@ -157,7 +200,7 @@ jobs:
             echo "- Commit: $GITHUB_SHA"
             echo "- Version: $(node -p "require('./package.json').version")"
             echo '- Checks: typecheck/tests, lint, Expo Doctor, Android export, iOS export.'
-            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ) ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$GITHUB_EVENT_NAME" == "schedule" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ) ]]; then
               echo '- Android APK: signed release APK and SHA-256 uploaded as a 30-day Actions artifact.'
             else
               echo '- Android APK: skipped for PRs and non-main branches; signing secrets are not exposed there.'
