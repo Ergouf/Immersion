@@ -44,13 +44,61 @@ npx expo export --platform android --output-dir dist-native
 npx expo export --platform ios --output-dir dist-ios
 ```
 
-The Android release APK also compiles locally with the generated native project. The current local artifact is `android/app/build/outputs/apk/release/app-release.apk` (generated debug keystore); a distributable beta still requires EAS/store signing, and installing it requires an Android device or configured AVD.
-
 Installable beta builds use the profiles in `eas.json` and require a configured Expo account plus a real Android/iOS device for the final smoke matrix.
 
-## GitHub release artifacts
+## GitHub automation
 
-The `Build release artifacts` GitHub Actions workflow runs for pushes to `main` or an `agent/**` branch, pull requests targeting `main`, and manual dispatches. It verifies the project, exports Android/iOS Expo bundles, builds a release-signed Android APK, verifies its certificate, and uploads all three outputs as an Actions artifact named `immersion-release-<commit>`. The signing key stays in repository Secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`); keep the matching keystore backup for future updates.
+### Continuous validation
+
+`.github/workflows/release-artifacts.yml` runs for pushes to `main` and `agent/**`, pull requests targeting `main`, and manual dispatches. It intentionally does **not** use signing secrets.
+
+It performs:
+
+- deterministic dependency install with `npm ci`;
+- typecheck and automated tests;
+- lint;
+- Expo Doctor;
+- Android and iOS Expo bundle exports;
+- short-lived Actions artifact upload for the exported bundles.
+
+### Tag-driven Release
+
+`.github/workflows/release.yml` is the only workflow that produces a distributable Android release. Pushing a `v*` tag starts the release pipeline.
+
+Before publishing, the workflow requires the tag version to match `package.json` exactly. For example, package version `0.5.1` must be released with tag `v0.5.1`.
+
+The release pipeline then:
+
+1. installs locked dependencies;
+2. runs tests, typecheck, lint, and Expo Doctor;
+3. validates both Android and iOS Expo exports;
+4. generates the Android native project with Expo prebuild;
+5. builds the Android release APK using the repository signing key;
+6. verifies the APK signature with `apksigner`;
+7. renames the asset to `Immersion-<tag>-android.apk`;
+8. generates a matching SHA-256 checksum file;
+9. creates or updates the GitHub Release and uploads both files.
+
+`v0.*` versions and tags containing a prerelease suffix are marked as GitHub pre-releases. The Linux workflow validates the iOS bundle but does not produce an installable IPA; iOS distribution remains an EAS/macOS signing task.
+
+Required repository Secrets:
+
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Keep the matching Android signing keystore backed up outside GitHub. Future Android updates must continue to use the same signing identity.
+
+Typical release sequence:
+
+```bash
+# package.json and package-lock.json should already contain the new version
+git tag v0.5.1
+git push origin v0.5.1
+```
+
+If validation or signing fails, the Release is not newly published. Re-running the same tag workflow is safe: existing Release assets are replaced idempotently.
 
 ## Delivery phases
 
