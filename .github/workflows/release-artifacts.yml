@@ -1,4 +1,4 @@
-name: Validate app
+name: Validate app and build main APK
 
 on:
   push:
@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate Expo app
+    name: Validate Expo app and build main APK
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Check out source
@@ -52,6 +52,83 @@ jobs:
           npx expo export --platform android --output-dir dist-native --clear
           npx expo export --platform ios --output-dir dist-ios --clear
 
+      - name: Set up Java for signed APK
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Generate Android native project
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Prepare Android release signing
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!required}" ]]; then
+              echo "Missing required GitHub Secret: ${required}" >&2
+              exit 1
+            fi
+          done
+
+          signing_file="$RUNNER_TEMP/immersion-upload.p12"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$signing_file"
+          test -s "$signing_file"
+          {
+            echo "IMMERSION_SIGNING_STORE_FILE=$signing_file"
+            echo "IMMERSION_SIGNING_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+            echo "IMMERSION_SIGNING_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+            echo "IMMERSION_SIGNING_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Build signed Android release APK
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        working-directory: android
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace \
+            "-Pandroid.injected.signing.store.file=$IMMERSION_SIGNING_STORE_FILE" \
+            "-Pandroid.injected.signing.store.password=$IMMERSION_SIGNING_STORE_PASSWORD" \
+            "-Pandroid.injected.signing.key.alias=$IMMERSION_SIGNING_KEY_ALIAS" \
+            "-Pandroid.injected.signing.key.password=$IMMERSION_SIGNING_KEY_PASSWORD"
+
+      - name: Verify APK signature
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$apksigner"
+          "$apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare signed APK artifact
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          short_sha="${GITHUB_SHA::7}"
+          apk_name="Immersion-${version}-${short_sha}-android.apk"
+          mkdir -p signed-apk
+          cp android/app/build/outputs/apk/release/app-release.apk "signed-apk/$apk_name"
+          (
+            cd signed-apk
+            sha256sum "$apk_name" > "$apk_name.sha256"
+          )
+          {
+            echo "SIGNED_APK=signed-apk/$apk_name"
+            echo "SIGNED_APK_CHECKSUM=signed-apk/$apk_name.sha256"
+          } >> "$GITHUB_ENV"
+
       - name: Upload bundle smoke artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -62,13 +139,32 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload signed APK from main
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        uses: actions/upload-artifact@v4
+        with:
+          name: immersion-signed-apk-${{ github.sha }}
+          path: signed-apk/**
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Summarize validation
         if: always()
+        shell: bash
         run: |
           {
             echo '## Immersion validation'
             echo "- Commit: $GITHUB_SHA"
             echo "- Version: $(node -p "require('./package.json').version")"
             echo '- Checks: typecheck/tests, lint, Expo Doctor, Android export, iOS export.'
-            echo '- Signing is intentionally reserved for tag-triggered Release workflow.'
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ) ]]; then
+              echo '- Android APK: signed release APK and SHA-256 uploaded as a 30-day Actions artifact.'
+            else
+              echo '- Android APK: skipped for PRs and non-main branches; signing secrets are not exposed there.'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove temporary signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/immersion-upload.p12"
