@@ -1,0 +1,51 @@
+name: Bootstrap Release v0.0.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/bootstrap-release-v0.0.0.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create initial GitHub Release
+    if: github.repository == 'Ergouf/Immersion'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create v0.0.0 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v0.0.0 already exists; nothing to do."
+            exit 0
+          fi
+
+          gh release create v0.0.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "v0.0.0 — Planning Foundation" \
+            --notes-file - <<'EOF'
+          ## Immersion v0.0.0 — Planning Foundation
+
+          Initial project-planning release for Immersion, a local-first cross-platform app intended to help rebuild deep immersion in a single activity.
+
+          ### Included
+
+          - Product thesis and MVP boundaries.
+          - React Native + Expo + TypeScript technical direction.
+          - Android/iOS cross-platform requirement from day one.
+          - Local-first persistence and data-ownership principles.
+          - Six sequential delivery phases with SPEC, TASKS, CHECKLIST, and MANIFEST constraints.
+          - Project-level `PHASES.yaml` execution and architecture rules.
+          - Tag-driven GitHub Release workflow for future versions.
+
+          ### Current status
+
+          This is a source/planning release only. The runnable Expo application has not yet been implemented. Phase 01 will establish the cross-platform application foundation and persistence boundary and is targeted for `v0.0.1`.
+          EOF
