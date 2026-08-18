@@ -46,7 +46,7 @@ jobs:
             curl --fail --silent --show-error --location \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${GH_TOKEN}" \
-              -H "X-GitHub-Api-Version: 2026-03-10" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
               "$api_url" \
             | python3 -c 'import json, sys; print(json.load(sys.stdin).get("total_count", 0))'
           )"
@@ -96,7 +96,7 @@ jobs:
           npx expo export --platform ios --output-dir dist-ios --clear
 
       - name: Set up Java for signed APK
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -104,11 +104,11 @@ jobs:
           cache: gradle
 
       - name: Generate Android native project
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         run: npx expo prebuild --platform android --no-install
 
       - name: Prepare Android release signing
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -135,7 +135,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build signed Android release APK
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         working-directory: android
         run: |
           ./gradlew :app:assembleRelease --no-daemon --stacktrace \
@@ -145,7 +145,7 @@ jobs:
             "-Pandroid.injected.signing.key.password=$IMMERSION_SIGNING_KEY_PASSWORD"
 
       - name: Verify APK signature
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         shell: bash
         run: |
           set -euo pipefail
@@ -154,7 +154,7 @@ jobs:
           "$apksigner" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare signed APK artifact
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         shell: bash
         run: |
           set -euo pipefail
@@ -182,8 +182,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload signed APK from main
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      - name: Upload signed APK
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.head_ref == 'agent/apk-build')
         uses: actions/upload-artifact@v4
         with:
           name: immersion-signed-apk-${{ github.sha }}
@@ -200,10 +200,10 @@ jobs:
             echo "- Commit: $GITHUB_SHA"
             echo "- Version: $(node -p "require('./package.json').version")"
             echo '- Checks: typecheck/tests, lint, Expo Doctor, Android export, iOS export.'
-            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$GITHUB_EVENT_NAME" == "schedule" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ) ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" || "$GITHUB_EVENT_NAME" == "schedule" || ( "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/main" ) || ( "$GITHUB_EVENT_NAME" == "pull_request" && "$GITHUB_HEAD_REF" == "agent/apk-build" ) ]]; then
               echo '- Android APK: signed release APK and SHA-256 uploaded as a 30-day Actions artifact.'
             else
-              echo '- Android APK: skipped for PRs and non-main branches; signing secrets are not exposed there.'
+              echo '- Android APK: skipped; signing secrets are not exposed to ordinary PRs or non-main branches.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
