@@ -50,9 +50,9 @@ Installable beta builds use the profiles in `eas.json` and require a configured 
 
 ### Continuous validation and main APK
 
-`.github/workflows/release-artifacts.yml` runs for pushes to `main` and `agent/**`, pull requests targeting `main`, and manual dispatches.
+`.github/workflows/release-artifacts.yml` runs for pushes to `main` and `agent/**`, pull requests targeting `main`, manual dispatches, and a five-minute scheduled safety-net on the default branch.
 
-Every run performs:
+Every real validation run performs:
 
 - deterministic dependency install with `npm ci`;
 - typecheck and automated tests;
@@ -61,7 +61,7 @@ Every run performs:
 - Android and iOS Expo bundle exports;
 - short-lived Actions artifact upload for the exported bundles.
 
-For a direct push to `main` or a manual workflow dispatch, it additionally:
+For a direct push to `main`, a manual workflow dispatch, or a scheduled backfill that detects no APK for the current `main` commit, it additionally:
 
 1. generates the Android native project with Expo prebuild;
 2. loads the Android signing identity from repository Secrets;
@@ -70,6 +70,8 @@ For a direct push to `main` or a manual workflow dispatch, it additionally:
 5. renames the APK with the package version and short commit SHA;
 6. generates a matching SHA-256 checksum;
 7. uploads the APK and checksum as a 30-day Actions artifact named `immersion-signed-apk-<commit>`.
+
+The scheduled safety-net first queries GitHub Actions artifacts for the current default-branch commit. If `immersion-signed-apk-<full-sha>` already exists, the scheduled run stops before dependency installation or native build work. This covers repository updates made through automation paths that do not emit a normal Actions `push` run, without rebuilding the same commit every five minutes.
 
 Pull requests and non-main development branches do not receive signing Secrets and therefore do not build the signed APK.
 
