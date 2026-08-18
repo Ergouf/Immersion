@@ -1,49 +1,32 @@
-name: Release
+name: Backfill v0.5.0 APK
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing tag to build or backfill, for example v0.5.0
-        required: true
-        type: string
+    branches:
+      - main
+    paths:
+      - '.github/workflows/release.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+  group: backfill-v0.5.0
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Validate, build and publish release
+    name: Rebuild and publish v0.5.0 APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - name: Checkout release source
+      - name: Checkout v0.5.0 source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: v0.5.0
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Resolve release tag
-        shell: bash
-        env:
-          MANUAL_TAG: ${{ inputs.tag }}
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            release_tag="$MANUAL_TAG"
-          else
-            release_tag="$GITHUB_REF_NAME"
-          fi
-          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -54,31 +37,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify tag matches package version
+      - name: Verify v0.5.0 source
         shell: bash
         run: |
           set -euo pipefail
-          tag="$RELEASE_TAG"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release tag must look like v0.5.0 or v0.5.0-beta.1; got: $tag" >&2
-            exit 1
-          fi
-
-          tag_version="${tag#v}"
-          package_version="$(node -p "require('./package.json').version")"
-          if [[ "$tag_version" != "$package_version" ]]; then
-            echo "Tag version ($tag_version) does not match package.json ($package_version)." >&2
-            exit 1
-          fi
-
-      - name: Verify source and tests
-        run: npm run verify
-
-      - name: Lint source
-        run: npm run lint
-
-      - name: Check Expo project health
-        run: npm run doctor
+          test "$(node -p "require('./package.json').version")" = "0.5.0"
+          npm run verify
+          npm run lint
+          npm run doctor
 
       - name: Verify Android and iOS bundles
         run: |
@@ -110,7 +76,6 @@ jobs:
               exit 1
             fi
           done
-
           signing_file="$RUNNER_TEMP/immersion-upload.p12"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$signing_file"
           test -s "$signing_file"
@@ -143,68 +108,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          apk_name="Immersion-${RELEASE_TAG}-android.apk"
+          apk_name="Immersion-v0.5.0-android.apk"
           cp android/app/build/outputs/apk/release/app-release.apk "release-assets/$apk_name"
-          (
-            cd release-assets
-            sha256sum "$apk_name" > "$apk_name.sha256"
-          )
-          {
-            echo "RELEASE_APK=release-assets/$apk_name"
-            echo "RELEASE_CHECKSUM=release-assets/$apk_name.sha256"
-          } >> "$GITHUB_ENV"
+          (cd release-assets && sha256sum "$apk_name" > "$apk_name.sha256")
+          echo "RELEASE_APK=release-assets/$apk_name" >> "$GITHUB_ENV"
+          echo "RELEASE_CHECKSUM=release-assets/$apk_name.sha256" >> "$GITHUB_ENV"
 
-      - name: Create or update GitHub Release
+      - name: Create or update v0.5.0 Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          tag="$RELEASE_TAG"
-          prerelease=false
-          if [[ "$tag" == v0.* || "$tag" == *-* ]]; then
-            prerelease=true
-          fi
-
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $tag already exists; assets will be replaced idempotently."
-            if [[ "$prerelease" == true ]]; then
-              gh release edit "$tag" \
-                --repo "$GITHUB_REPOSITORY" \
-                --title "Immersion $tag" \
-                --prerelease
-            fi
+          if ! gh release view v0.5.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create v0.5.0 --repo "$GITHUB_REPOSITORY" --title "Immersion v0.5.0" --generate-notes --verify-tag --prerelease
           else
-            args=(
-              "$tag"
-              --repo "$GITHUB_REPOSITORY"
-              --title "Immersion $tag"
-              --generate-notes
-              --verify-tag
-            )
-            if [[ "$prerelease" == true ]]; then
-              args+=(--prerelease)
-            fi
-            gh release create "${args[@]}"
+            gh release edit v0.5.0 --repo "$GITHUB_REPOSITORY" --title "Immersion v0.5.0" --prerelease
           fi
-
-          gh release upload "$tag" \
-            "$RELEASE_APK" \
-            "$RELEASE_CHECKSUM" \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
-
-      - name: Summarize release
-        if: success()
-        shell: bash
-        run: |
-          {
-            echo '## Immersion release published'
-            echo "- Tag: $RELEASE_TAG"
-            echo "- Android: $(basename "$RELEASE_APK")"
-            echo "- Checksum: $(basename "$RELEASE_CHECKSUM")"
-            echo '- iOS: bundle validation passed; no installable IPA is produced by this Linux workflow.'
-          } >> "$GITHUB_STEP_SUMMARY"
+          gh release upload v0.5.0 "$RELEASE_APK" "$RELEASE_CHECKSUM" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Remove temporary signing key
         if: always()
