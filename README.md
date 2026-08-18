@@ -48,11 +48,11 @@ Installable beta builds use the profiles in `eas.json` and require a configured 
 
 ## GitHub automation
 
-### Continuous validation
+### Continuous validation and main APK
 
-`.github/workflows/release-artifacts.yml` runs for pushes to `main` and `agent/**`, pull requests targeting `main`, and manual dispatches. It intentionally does **not** use signing secrets.
+`.github/workflows/release-artifacts.yml` runs for pushes to `main` and `agent/**`, pull requests targeting `main`, and manual dispatches.
 
-It performs:
+Every run performs:
 
 - deterministic dependency install with `npm ci`;
 - typecheck and automated tests;
@@ -61,9 +61,21 @@ It performs:
 - Android and iOS Expo bundle exports;
 - short-lived Actions artifact upload for the exported bundles.
 
+For a direct push to `main` or a manual workflow dispatch, it additionally:
+
+1. generates the Android native project with Expo prebuild;
+2. loads the Android signing identity from repository Secrets;
+3. builds a signed release APK;
+4. verifies the APK signature with `apksigner`;
+5. renames the APK with the package version and short commit SHA;
+6. generates a matching SHA-256 checksum;
+7. uploads the APK and checksum as a 30-day Actions artifact named `immersion-signed-apk-<commit>`.
+
+Pull requests and non-main development branches do not receive signing Secrets and therefore do not build the signed APK.
+
 ### Tag-driven Release
 
-`.github/workflows/release.yml` is the only workflow that produces a distributable Android release. Pushing a `v*` tag starts the release pipeline.
+`.github/workflows/release.yml` turns a version tag into the durable GitHub Release. Pushing a `v*` tag starts the release pipeline.
 
 Before publishing, the workflow requires the tag version to match `package.json` exactly. For example, package version `0.5.1` must be released with tag `v0.5.1`.
 
