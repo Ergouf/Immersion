@@ -9,7 +9,7 @@ import { BackupRepository } from '../src/data/repositories/backup-repository';
 import { MAX_BACKUP_BYTES } from '../src/domain/backup';
 import { BackupService } from '../src/services/backup-service';
 import { AppText, Card, InlineError, PrimaryButton, Screen, SecondaryButton, SectionTitle } from '../src/ui/primitives';
-import { spacing, typography } from '../src/theme/tokens';
+import { spacing } from '../src/theme/tokens';
 
 export default function BackupScreen() {
   const db = useSQLiteContext();
@@ -67,9 +67,9 @@ export default function BackupScreen() {
     <AppText muted style={{ marginTop: spacing.xs }}>数据只保存在设备上。导出文件由你自行保存或发送到另一台设备。</AppText>
     <Card><AppText style={styles.heading}>导出</AppText><AppText muted style={styles.copy}>生成版本化 JSON，并打开系统分享面板；不会自动上传。</AppText><PrimaryButton onPress={() => void exportBackup()} disabled={busy}>导出备份</PrimaryButton></Card>
     <Card><AppText style={styles.heading}>导入</AppText><AppText muted style={styles.copy}>先完整校验，再预览，最后以事务方式合并。冲突会中止，不覆盖本地数据。</AppText><SecondaryButton onPress={() => void pickBackup()} disabled={busy}>选择备份文件</SecondaryButton>{preview ? <View style={styles.preview}><AppText>备份版本：{preview.backupVersion}</AppText><AppText>sessions：{preview.sessions}</AppText><AppText>念头：{preview.distractions}</AppText><PrimaryButton onPress={() => void importBackup()} disabled={busy}>确认导入</PrimaryButton></View> : null}</Card>
-    {status ? <AppText style={{ color: '#356859' }}>{status}</AppText> : null}
+    {status ? <AppText>{status}</AppText> : null}
     {error ? <InlineError>{error}</InlineError> : null}
   </Screen>;
 }
 
-const styles = StyleSheet.create({ heading: { ...typography.heading, marginBottom: spacing.sm }, copy: { marginBottom: spacing.md }, preview: { marginTop: spacing.md, gap: spacing.xs }, });
+const styles = StyleSheet.create({ heading: { fontSize: 20, lineHeight: 28, fontWeight: '500', marginBottom: spacing.sm }, copy: { marginBottom: spacing.md }, preview: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, gap: spacing.xs }, });

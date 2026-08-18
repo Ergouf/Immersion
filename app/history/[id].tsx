@@ -32,10 +32,10 @@ export default function HistoryDetailScreen() {
     <AppText muted>{new Date(session.startedAt).toLocaleString()} — {session.endedAt ? new Date(session.endedAt).toLocaleString() : '进行中'}</AppText>
     <AppText style={styles.duration}>{formatDuration(duration)}</AppText>
     <Card><Field label="沉浸程度" value={session.immersionLevel === null ? '未填写' : `${session.immersionLevel}/3`} /><Field label="进入状态" value={session.immersionDelayMinutes === null ? '未填写' : `${session.immersionDelayMinutes} 分钟`} /><Field label="结束原因" value={session.endReason ? reasons[session.endReason] : '未填写'} /></Card>
-    <Card><AppText style={styles.heading}>暂存的念头（{distractions.length}）</AppText>{distractions.length === 0 ? <AppText muted>本次没有暂存念头。</AppText> : distractions.map((item, index) => <View key={item.id}><Divider /><AppText>{item.text}</AppText><AppText muted style={typography.small}>{new Date(item.createdAt).toLocaleTimeString()}</AppText>{index === distractions.length - 1 ? null : null}</View>)}</Card>
+    <Card><AppText style={styles.heading}>暂存的念头（{distractions.length}）</AppText>{distractions.length === 0 ? <AppText muted style={styles.empty}>本次没有暂存念头。</AppText> : distractions.map((item) => <View key={item.id}><Divider /><AppText>{item.text}</AppText><AppText muted style={[typography.small, styles.thoughtTime]}>{new Date(item.createdAt).toLocaleTimeString()}</AppText></View>)}</Card>
   </Screen>;
 }
 
 function Field({ label, value }: { label: string; value: string }) { return <View style={styles.field}><AppText muted>{label}</AppText><AppText>{value}</AppText></View>; }
 
-const styles = StyleSheet.create({ duration: { ...typography.heading, marginTop: spacing.md, marginBottom: spacing.lg }, heading: { fontWeight: '700' }, field: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, gap: spacing.md }, });
+const styles = StyleSheet.create({ duration: { fontSize: 40, lineHeight: 50, fontWeight: '400', letterSpacing: -0.8, marginTop: spacing.md, marginBottom: spacing.lg }, heading: { fontSize: 18, fontWeight: '500' }, field: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm, gap: spacing.md }, empty: { marginTop: spacing.md }, thoughtTime: { marginTop: spacing.xs }, });

@@ -8,8 +8,16 @@ export { ErrorBoundary } from 'expo-router';
 export default function RootLayout() {
   return (
     <ImmersionDatabaseProvider>
-      <StatusBar style="auto" />
-      <Stack screenOptions={{ headerBackTitle: '返回', headerShown: true }}>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{
+        contentStyle: { backgroundColor: '#FFFFFF' },
+        headerBackTitle: '返回',
+        headerShown: true,
+        headerStyle: { backgroundColor: '#FFFFFF' },
+        headerTintColor: '#242120',
+        headerTitleStyle: { fontSize: 18, fontWeight: '500' },
+        headerShadowVisible: false,
+      }}>
         <Stack.Screen name="index" options={{ title: 'Immersion', headerShown: false }} />
         <Stack.Screen name="focus/[id]" options={{ title: '沉浸中', headerBackVisible: false }} />
         <Stack.Screen name="review/[id]" options={{ title: '回顾本次沉浸', headerBackVisible: false }} />

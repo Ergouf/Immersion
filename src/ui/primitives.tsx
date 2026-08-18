@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { radii, spacing, typography, useAppColors } from '../theme/tokens';
+import { spacing, typography, useAppColors } from '../theme/tokens';
 
 export function Screen({ children, scroll = false }: PropsWithChildren<{ scroll?: boolean }>) {
   const colors = useAppColors();
@@ -29,22 +29,22 @@ export function SectionTitle({ children }: PropsWithChildren) {
 
 export function AppInput(props: React.ComponentProps<typeof TextInput>) {
   const colors = useAppColors();
-  return <TextInput {...props} placeholderTextColor={colors.secondary} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }, props.style]} />;
+  return <TextInput {...props} placeholderTextColor={colors.secondary} selectionColor={colors.text} style={[styles.input, { color: colors.text, borderColor: colors.border }, props.style]} />;
 }
 
 export function PrimaryButton({ children, onPress, disabled = false, accessibilityLabel }: PropsWithChildren<{ onPress: () => void; disabled?: boolean; accessibilityLabel?: string }>) {
   const colors = useAppColors();
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent, opacity: disabled ? 0.48 : pressed ? 0.78 : 1 }]}><Text style={[typography.body, styles.primaryText, { color: colors.accentText }]}>{children}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.primaryButton, { opacity: disabled ? 0.34 : pressed ? 0.45 : 1 }]}><Text style={[typography.body, styles.primaryText, { color: colors.text }]}>{children}</Text></Pressable>;
 }
 
 export function SecondaryButton({ children, onPress, disabled = false, accessibilityLabel }: PropsWithChildren<{ onPress: () => void; disabled?: boolean; accessibilityLabel?: string }>) {
   const colors = useAppColors();
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.border, backgroundColor: colors.surface, opacity: disabled ? 0.48 : pressed ? 0.75 : 1 }]}><Text style={[typography.body, { color: colors.text }]}>{children}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.secondaryButton, { borderColor: colors.border, opacity: disabled ? 0.34 : pressed ? 0.45 : 1 }]}><Text style={[typography.body, { color: colors.text }]}>{children}</Text></Pressable>;
 }
 
 export function QuietLink({ children, onPress, accessibilityLabel }: PropsWithChildren<{ onPress: () => void; accessibilityLabel?: string }>) {
   const colors = useAppColors();
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1, paddingVertical: spacing.sm })}><Text style={[typography.body, { color: colors.accent, textDecorationLine: 'underline' }]}>{children}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.45 : 1, paddingVertical: spacing.sm })}><Text style={[typography.body, { color: colors.text }]}>{children}</Text></Pressable>;
 }
 
 export function Card({ children }: PropsWithChildren) {
@@ -71,10 +71,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   scrollContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
   title: { marginBottom: spacing.sm },
-  input: { minHeight: 52, borderWidth: 1, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: 16 },
-  primaryButton: { minHeight: 52, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primaryText: { fontWeight: '700' },
-  secondaryButton: { minHeight: 50, borderRadius: radii.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  card: { borderRadius: radii.md, borderWidth: 1, padding: spacing.md, marginBottom: spacing.md },
+  input: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 0, paddingVertical: spacing.sm, fontSize: 17 },
+  primaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  primaryText: { fontSize: 18, fontWeight: '400' },
+  secondaryButton: { minHeight: 50, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  card: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.lg, marginTop: spacing.md },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

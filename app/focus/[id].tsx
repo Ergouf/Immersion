@@ -104,7 +104,7 @@ export default function FocusScreen() {
       <View style={styles.content}>
         <AppText muted>当前这一件事</AppText>
         <AppText accessibilityLabel={`当前活动：${session.title}`} style={styles.title}>{session.title}</AppText>
-        <AppText accessibilityLabel={`已沉浸 ${formatDuration(elapsed)}`} style={[styles.timer, { color: colors.accent }]}>{formatDuration(elapsed)}</AppText>
+        <AppText accessibilityLabel={`已沉浸 ${formatDuration(elapsed)}`} style={styles.timer}>{formatDuration(elapsed)}</AppText>
         <AppText muted style={styles.helper}>时间会根据真实经过的时间计算。</AppText>
       </View>
       {error ? <InlineError>{error}</InlineError> : null}
@@ -115,7 +115,7 @@ export default function FocusScreen() {
 
       <Modal visible={captureOpen} animationType={reduceMotion ? 'none' : 'fade'} transparent onRequestClose={() => setCaptureOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalBackdrop, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <SectionTitle>记录一个念头</SectionTitle>
             <AppText muted style={{ marginTop: spacing.xs }}>写下它，然后回到眼前的事。</AppText>
             <AppInput autoFocus multiline value={draft} onChangeText={setDraft} placeholder="我突然想起……" accessibilityLabel="念头内容" style={styles.multiline} />
@@ -129,13 +129,13 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, justifyContent: 'center' },
-  title: { ...typography.heading, marginTop: spacing.sm },
-  timer: { fontSize: 54, lineHeight: 66, fontWeight: '700', marginTop: spacing.xl },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { ...typography.heading, marginTop: spacing.sm, textAlign: 'center' },
+  timer: { fontSize: 58, lineHeight: 70, fontWeight: '400', letterSpacing: -1.2, marginTop: spacing.xl },
   helper: { marginTop: spacing.sm },
-  actions: { gap: spacing.sm, alignItems: 'stretch', paddingBottom: spacing.lg },
+  actions: { gap: spacing.xs, alignItems: 'center', paddingBottom: spacing.lg },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  modalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
+  modalCard: { borderTopWidth: StyleSheet.hairlineWidth, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   multiline: { minHeight: 112, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'stretch' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, alignItems: 'stretch' },
 });

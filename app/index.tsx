@@ -1,18 +1,35 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import { SQLiteSessionRepository } from '../src/data/repositories/session-repository';
 import { calculateDurationMs, formatDuration, type Session, type SevenDaySummary } from '../src/domain/session';
 import { SessionService } from '../src/services/session-service';
-import { AppInput, AppText, Card, InlineError, LoadingState, PrimaryButton, Screen, SectionTitle, Title } from '../src/ui/primitives';
-import { spacing, typography, useAppColors } from '../src/theme/tokens';
+
+const palette = {
+  background: '#FFFFFF',
+  text: '#242120',
+  secondary: '#686463',
+  line: '#817D7B',
+  error: '#9A4239',
+} as const;
 
 export default function HomeScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const colors = useAppColors();
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [active, setActive] = useState<Session | null>(null);
   const [summary, setSummary] = useState<SevenDaySummary | null>(null);
@@ -24,7 +41,10 @@ export default function HomeScreen() {
     setLoading(true);
     try {
       const repository = new SQLiteSessionRepository(db);
-      const [nextActive, nextSummary] = await Promise.all([repository.getActive(), repository.getSevenDaySummary()]);
+      const [nextActive, nextSummary] = await Promise.all([
+        repository.getActive(),
+        repository.getSevenDaySummary(),
+      ]);
       setActive(nextActive);
       setSummary(nextSummary);
       setError(null);
@@ -38,7 +58,7 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const start = async () => {
-    if (starting) return;
+    if (starting || title.trim().length === 0) return;
     setStarting(true);
     setError(null);
     try {
@@ -53,73 +73,168 @@ export default function HomeScreen() {
     }
   };
 
-  if (loading) return <LoadingState />;
+  if (loading) {
+    return (
+      <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <ActivityIndicator color={palette.text} />
+        <Text style={styles.loadingText}>正在准备…</Text>
+      </View>
+    );
+  }
 
+  const totalMinutes = Math.round((summary?.totalDurationMs ?? 0) / 60_000);
+  const averageMinutes = Math.round((summary?.averageDurationMs ?? 0) / 60_000);
   const activeDuration = active ? calculateDurationMs(active) ?? 0 : 0;
+
   return (
-    <Screen scroll>
-      <View style={styles.header}>
-        <Title>Immersion</Title>
-        <AppText muted style={styles.subtitle}>把注意力留给眼前的一件事。</AppText>
-      </View>
-
-      {active ? (
-        <Card>
-          <AppText muted>正在进行</AppText>
-          <AppText style={styles.activeTitle}>{active.title}</AppText>
-          <AppText muted>{formatDuration(activeDuration)}</AppText>
-          <PrimaryButton onPress={() => router.push({ pathname: '/focus/[id]', params: { id: active.id } })}>恢复沉浸</PrimaryButton>
-        </Card>
-      ) : (
-        <Card>
-          <SectionTitle>今天想沉浸于什么？</SectionTitle>
-          <AppInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="例如：读完这一章"
-            returnKeyType="done"
-            onSubmitEditing={() => void start()}
-            accessibilityLabel="今天想沉浸于什么"
-          />
-          <View style={{ height: spacing.md }} />
-          <PrimaryButton onPress={() => void start()} disabled={starting || title.trim().length === 0}>开始沉浸</PrimaryButton>
-          {error ? <InlineError>{error}</InlineError> : null}
-        </Card>
-      )}
-
-      {error && active ? <InlineError>{error}</InlineError> : null}
-
-      <Card>
-        <AppText muted>最近 7 天</AppText>
-        <View style={styles.metrics}>
-          <Metric value={String(summary?.count ?? 0)} label="次沉浸" />
-          <Metric value={String(Math.round((summary?.totalDurationMs ?? 0) / 60_000))} label="总分钟" />
-          <Metric value={formatDuration(summary?.averageDurationMs ?? 0)} label="平均时长" />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.screen}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Math.max(insets.top + 22, 48), paddingBottom: Math.max(insets.bottom + 82, 98) },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Immersion</Text>
+          <Text style={styles.subtitle}>要把注意力留给眼前的一件事。</Text>
         </View>
-      </Card>
 
-      <View style={styles.links}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/history')} style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}>
-          <AppText style={{ color: colors.accent }}>查看历史</AppText>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/backup')} style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}>
-          <AppText style={{ color: colors.accent }}>数据迁移</AppText>
-        </Pressable>
+        <View style={styles.goalSection}>
+          <Text style={styles.sectionTitle}>{active ? '正在沉浸' : '今天的目标'}</Text>
+
+          {active ? (
+            <>
+              <View style={styles.activeRow}>
+                <View style={styles.activeCopy}>
+                  <Text style={styles.activeTitle} numberOfLines={2}>{active.title}</Text>
+                  <Text style={styles.activeDuration}>{formatDuration(activeDuration)}</Text>
+                </View>
+              </View>
+              <ActionButton
+                label="恢复沉浸"
+                onPress={() => router.push({ pathname: '/focus/[id]', params: { id: active.id } })}
+              />
+            </>
+          ) : (
+            <>
+              <TextInput
+                accessibilityLabel="今天的目标"
+                onChangeText={setTitle}
+                onSubmitEditing={() => void start()}
+                placeholder="例如：读完这一章"
+                placeholderTextColor={palette.secondary}
+                returnKeyType="done"
+                selectionColor={palette.text}
+                style={styles.input}
+                value={title}
+              />
+              <View style={styles.inputLine} />
+              <ActionButton
+                disabled={starting || title.trim().length === 0}
+                label={starting ? '正在开启…' : '开启沉浸'}
+                onPress={() => void start()}
+              />
+            </>
+          )}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+
+        <View style={styles.summarySection}>
+          <Text style={styles.summaryTitle}>最近 7 天</Text>
+          <View style={styles.metrics}>
+            <Metric label="次沉浸" value={String(summary?.count ?? 0)} />
+            <Metric label="总分钟" value={String(totalMinutes)} />
+            <Metric label="平均时长" value={String(averageMinutes)} />
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 18) }]}>
+        <BottomLink label="查看历史" onPress={() => router.push('/history')} />
+        <BottomLink label="数据迁移" onPress={() => router.push('/backup')} />
       </View>
-    </Screen>
+    </KeyboardAvoidingView>
+  );
+}
+
+function ActionButton({
+  disabled = false,
+  label,
+  onPress,
+}: {
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      hitSlop={12}
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+    >
+      <Text style={[styles.actionLabel, disabled && styles.actionDisabled]}>{label}</Text>
+    </Pressable>
   );
 }
 
 function Metric({ value, label }: { value: string; label: string }) {
-  const colors = useAppColors();
-  return <View style={styles.metric}><AppText style={{ color: colors.text, fontWeight: '700', fontSize: 20 }}>{value}</AppText><AppText muted style={typography.small}>{label}</AppText></View>;
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function BottomLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      hitSlop={12}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <Text style={styles.bottomLink}>{label}</Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.xl },
-  subtitle: { marginTop: spacing.sm },
-  activeTitle: { ...typography.heading, marginVertical: spacing.sm },
-  metrics: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
-  metric: { flex: 1, gap: spacing.xs },
-  links: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
+  screen: { flex: 1, backgroundColor: palette.background },
+  content: { flexGrow: 1, paddingHorizontal: 32 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.background },
+  loadingText: { marginTop: 12, color: palette.secondary, fontSize: 15 },
+  header: { alignItems: 'center' },
+  title: { color: palette.text, fontSize: 42, fontWeight: '400', letterSpacing: -1.1, lineHeight: 50 },
+  subtitle: { marginTop: 4, color: palette.text, fontSize: 17, fontWeight: '400', lineHeight: 26 },
+  goalSection: { marginTop: 48 },
+  sectionTitle: { color: palette.text, fontSize: 23, fontWeight: '700', lineHeight: 32 },
+  input: { height: 49, marginTop: 13, paddingHorizontal: 0, paddingVertical: 8, color: palette.text, fontSize: 18, fontWeight: '400', lineHeight: 26 },
+  inputLine: { height: StyleSheet.hairlineWidth, backgroundColor: palette.line },
+  actionButton: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', marginTop: 22, paddingHorizontal: 18 },
+  actionLabel: { color: palette.text, fontSize: 20, fontWeight: '400', lineHeight: 28 },
+  actionDisabled: { color: palette.text },
+  activeRow: { minHeight: 50, marginTop: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line, justifyContent: 'center' },
+  activeCopy: { paddingBottom: 8 },
+  activeTitle: { color: palette.text, fontSize: 18, lineHeight: 25 },
+  activeDuration: { marginTop: 2, color: palette.secondary, fontSize: 14, lineHeight: 20 },
+  error: { marginTop: 12, color: palette.error, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  summarySection: { marginTop: 74 },
+  summaryTitle: { color: palette.text, fontSize: 18, fontWeight: '500', lineHeight: 26 },
+  metrics: { flexDirection: 'row', marginTop: 18 },
+  metric: { flex: 1 },
+  metricValue: { color: palette.text, fontSize: 28, fontWeight: '500', lineHeight: 34 },
+  metricLabel: { marginTop: 2, color: palette.text, fontSize: 16, fontWeight: '400', lineHeight: 24 },
+  bottomBar: { position: 'absolute', right: 0, bottom: 0, left: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 18, paddingHorizontal: 24, backgroundColor: palette.background },
+  bottomLink: { color: palette.text, fontSize: 17, fontWeight: '400', lineHeight: 26 },
+  pressed: { opacity: 0.45 },
 });

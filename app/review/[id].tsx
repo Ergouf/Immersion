@@ -7,7 +7,7 @@ import { SQLiteSessionRepository } from '../../src/data/repositories/session-rep
 import { END_REASONS, calculateDurationMs, formatDuration, type EndReason, type Session } from '../../src/domain/session';
 import { SessionService } from '../../src/services/session-service';
 import { AppInput, AppText, Card, InlineError, LoadingState, PrimaryButton, Screen, SectionTitle } from '../../src/ui/primitives';
-import { spacing, typography, useAppColors } from '../../src/theme/tokens';
+import { spacing, useAppColors } from '../../src/theme/tokens';
 
 const END_REASON_LABELS: Record<EndReason, string> = {
   completed: '完成了计划',
@@ -92,11 +92,11 @@ function ReasonChoice({ label, selected, onPress }: { label: string; selected: b
 }
 
 const styles = StyleSheet.create({
-  duration: { ...typography.heading, marginTop: spacing.sm, marginBottom: spacing.lg },
+  duration: { fontSize: 40, lineHeight: 50, fontWeight: '400', letterSpacing: -0.8, marginTop: spacing.sm, marginBottom: spacing.lg },
   question: { fontWeight: '700', marginBottom: spacing.md },
   choiceRow: { flexDirection: 'row', gap: spacing.sm },
   choice: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   legend: { marginTop: spacing.md },
-  reasonList: { gap: spacing.sm },
-  reason: { minHeight: 44, borderWidth: 1, borderRadius: 12, justifyContent: 'center', paddingHorizontal: spacing.md },
+  reasonList: { borderTopWidth: StyleSheet.hairlineWidth },
+  reason: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, justifyContent: 'center', paddingHorizontal: spacing.sm },
 });

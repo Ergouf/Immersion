@@ -32,7 +32,7 @@ export default function HistoryScreen() {
 
 function HistoryCard({ session, onPress, colors }: { session: Session; onPress: () => void; colors: ReturnType<typeof useAppColors> }) {
   const endedAt = session.endedAt ? new Date(session.endedAt).toLocaleString() : '进行中';
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}><Card><View style={styles.row}><View style={{ flex: 1 }}><AppText style={{ fontWeight: '700' }}>{session.title}</AppText><AppText muted style={typography.small}>{endedAt}</AppText></View><View style={styles.right}><AppText style={{ color: colors.accent, fontWeight: '700' }}>{formatDuration(calculateDurationMs(session) ?? 0)}</AppText>{session.immersionLevel === null ? <AppText muted style={typography.small}>未评分</AppText> : <AppText muted style={typography.small}>沉浸 {session.immersionLevel}/3</AppText>}</View></View></Card></Pressable>;
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.45 : 1 })}><Card><View style={styles.row}><View style={{ flex: 1 }}><AppText style={styles.itemTitle}>{session.title}</AppText><AppText muted style={[typography.small, styles.date]}>{endedAt}</AppText></View><View style={styles.right}><AppText style={{ color: colors.text, fontSize: 18 }}>{formatDuration(calculateDurationMs(session) ?? 0)}</AppText>{session.immersionLevel === null ? <AppText muted style={typography.small}>未评分</AppText> : <AppText muted style={typography.small}>沉浸 {session.immersionLevel}/3</AppText>}</View></View></Card></Pressable>;
 }
 
-const styles = StyleSheet.create({ row: { flexDirection: 'row', gap: spacing.md }, right: { alignItems: 'flex-end', gap: spacing.xs } });
+const styles = StyleSheet.create({ row: { flexDirection: 'row', gap: spacing.md }, itemTitle: { fontSize: 18, fontWeight: '500' }, date: { marginTop: spacing.xs }, right: { alignItems: 'flex-end', gap: spacing.xs } });
