@@ -100,6 +100,8 @@ git push origin v0.5.1
 
 If validation or signing fails, the Release is not newly published. Re-running the same tag workflow is safe: existing Release assets are replaced idempotently.
 
+For an older tag created before the current release workflow existed, open **Actions → Release → Run workflow** and enter the existing tag, such as `v0.5.0`. The workflow checks out that exact tag, rebuilds it, and backfills or replaces its APK and SHA-256 assets without moving the tag.
+
 ## Delivery phases
 
 | Phase | Outcome | Version target |
